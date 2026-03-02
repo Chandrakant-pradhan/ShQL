@@ -150,9 +150,6 @@ export default function ConnectPage() {
                     <p className="text-sm font-medium text-slate-800 truncate">
                       {file.name}
                     </p>
-                    <p className="text-xs text-slate-500">
-                      Google Spreadsheet
-                    </p>
                   </div>
                 </div>
               ))}
