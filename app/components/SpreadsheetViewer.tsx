@@ -50,7 +50,6 @@ export default function SpreadsheetViewer({ rows }: Props) {
   const headers = rows[0];
   const rawData = rows.slice(1);
 
-  // Build AG Grid column defs from header row
   const columnDefs = useMemo<ColDef[]>(
     () =>
       headers.map((h) => ({
@@ -65,7 +64,6 @@ export default function SpreadsheetViewer({ rows }: Props) {
     [headers]
   );
 
-  // Convert string[][] → array of objects keyed by header name
   const rowData = useMemo(
     () =>
       rawData.map((row) =>

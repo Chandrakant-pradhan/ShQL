@@ -11,8 +11,6 @@ export default function ConnectPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  /* ================= GOOGLE LOGIN ================= */
-
   const login = useGoogleLogin({
     scope:
       "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets",
@@ -35,8 +33,6 @@ export default function ConnectPage() {
     if (savedToken) setAccessToken(savedToken);
   }, []);
 
-  /* ================= FETCH FILES ================= */
-
   async function fetchDriveFiles(token: string) {
     setLoading(true);
     try {
@@ -58,8 +54,6 @@ export default function ConnectPage() {
   useEffect(() => {
     if (accessToken) fetchDriveFiles(accessToken);
   }, [accessToken]);
-
-  /* ================= OPEN SHEET ================= */
 
   async function openSheet(file: any) {
     try {
@@ -97,7 +91,6 @@ export default function ConnectPage() {
         })
       );
 
-      /* Save source info */
       sessionStorage.setItem(
         "sheetSource",
         JSON.stringify({
@@ -117,18 +110,14 @@ export default function ConnectPage() {
     }
   }
 
-  /* ================= UI ================= */
-
   return (
     <div className="p-8 max-w-4xl">
-      {/* Header */}
       <h1 className="text-2xl font-bold mb-8 flex items-center gap-2">
         <Cloud className="w-6 h-6 text-blue-600" />
         Google Drive
       </h1>
   
       {!accessToken ? (
-        /* ================= LOGIN CARD ================= */
         <div className="bg-white p-8 rounded-2xl shadow-sm border max-w-md">
           <p className="text-slate-600 mb-6">
             Connect your Google Drive to browse your Google Sheets.
@@ -143,9 +132,7 @@ export default function ConnectPage() {
           </button>
         </div>
       ) : (
-        /* ================= FILE LIST ================= */
         <div className="bg-white p-6 rounded-2xl shadow-sm border">
-          {/* Section Header */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-semibold">Google Sheets</h2>
   
@@ -157,8 +144,6 @@ export default function ConnectPage() {
               Disconnect
             </button>
           </div>
-  
-          {/* Loading Skeleton */}
           {loading && (
             <div className="space-y-3">
               {[...Array(4)].map((_, i) => (
@@ -169,13 +154,9 @@ export default function ConnectPage() {
               ))}
             </div>
           )}
-  
-          {/* No Files */}
           {!loading && files.length === 0 && (
             <p className="text-slate-400">No spreadsheets found</p>
           )}
-  
-          {/* File List */}
           {!loading && files.length > 0 && (
             <div className="max-h-[420px] overflow-y-auto pr-2 space-y-3">
               {files.map((file) => (
@@ -190,12 +171,9 @@ export default function ConnectPage() {
                     transition-all duration-200 cursor-pointer
                   "
                 >
-                  {/* Icon */}
                   <div className="p-2 bg-green-100 rounded-lg">
                     <FileSpreadsheet className="w-5 h-5 text-green-600" />
                   </div>
-  
-                  {/* File Name */}
                   <div className="flex-1">
                     <p className="text-sm font-medium text-slate-800 truncate">
                       {file.name}

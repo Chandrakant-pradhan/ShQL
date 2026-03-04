@@ -14,16 +14,20 @@ export default function TablesPage() {
   const [active, setActive] = useState<number>(0);
   const [syncing, setSyncing] = useState<boolean>(false);
 
-  /* ================= LOAD FROM STORAGE ================= */
-
   useEffect(() => {
     const stored = sessionStorage.getItem("sheets");
     if (stored) {
-      setTabs(JSON.parse(stored));
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setTabs(parsed);
+        }
+      } catch {
+        setTabs([]);
+      }
     }
   }, []);
 
-  /* ================= SYNC ================= */
 
   async function syncSheets() {
     const token = sessionStorage.getItem("accessToken");
@@ -77,11 +81,11 @@ export default function TablesPage() {
     }
   }
 
-  /* ================= CLOSE TAB ================= */
 
   function closeTab(index: number) {
     const updated = tabs.filter((_, i) => i !== index);
     setTabs(updated);
+    sessionStorage.setItem("sheets", JSON.stringify(updated));
     setActive(Math.max(0, index - 1));
   }
 
@@ -93,17 +97,14 @@ export default function TablesPage() {
     );
   }
 
-  const activeTab = tabs[active];
+  const activeTab = tabs[Math.min(active, tabs.length - 1)];
 
   return (
     <div className="p-6 h-full flex flex-col">
 
-      {/* ================= TOP BAR ================= */}
       <div className="flex items-center justify-between mb-4">
 
-        {/* Tabs */}
         <div className="flex gap-2 overflow-x-auto scrollbar-thin">
-
           {tabs.map((tab, i) => (
             <div
               key={i}
@@ -134,7 +135,6 @@ export default function TablesPage() {
           ))}
         </div>
 
-        {/* Sync Button */}
         <button
           onClick={syncSheets}
           disabled={syncing}
@@ -150,7 +150,6 @@ export default function TablesPage() {
         </button>
       </div>
 
-      {/* ================= TABLE ================= */}
       <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <SpreadsheetViewer rows={activeTab.rows} />
       </div>

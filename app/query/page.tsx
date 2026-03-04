@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { getDB } from "../lib/pglite";
 
 export default function QueryPage() {
   const [db, setDb] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [rows, setRows] = useState<any[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     async function init() {
@@ -21,11 +22,43 @@ export default function QueryPage() {
     if (!db) return;
 
     setError(null);
-    setRows([]);
 
     try {
       const result = await db.query(query);
-      setRows(result.rows || []);
+      const resultRows = result.rows || [];
+
+      if (resultRows.length === 0) {
+        setError("Query returned no rows");
+        return;
+      }
+
+      const headers = Object.keys(resultRows[0]);
+
+      const rows: string[][] = [
+        headers,
+        ...resultRows.map((r: any) =>
+          headers.map((h) => String(r[h] ?? ""))
+        ),
+      ];
+
+      const queryTab = {
+        name: "query_result",
+        rows,
+      };
+
+      const existingRaw = sessionStorage.getItem("sheets");
+      const existing = existingRaw ? JSON.parse(existingRaw) : [];
+
+      const filtered = existing.filter(
+        (t: any) => t.name !== "query_result"
+      );
+
+      const updated = [...filtered, queryTab];
+
+      sessionStorage.setItem("sheets", JSON.stringify(updated));
+
+      router.push("/tables");
+
     } catch (err: any) {
       setError(err?.message || "Query failed");
     }
@@ -69,7 +102,6 @@ export default function QueryPage() {
           </p>
         )}
       </div>
-
     </div>
   );
 }
