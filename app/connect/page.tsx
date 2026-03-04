@@ -3,15 +3,16 @@
 import { useState, useEffect } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { LogOut, Cloud, FileSpreadsheet } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function ConnectPage() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  /* =========================
-     Google Login
-  ========================= */
+  /* ================= GOOGLE LOGIN ================= */
+
   const login = useGoogleLogin({
     scope:
       "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets",
@@ -29,46 +30,94 @@ export default function ConnectPage() {
     sessionStorage.removeItem("accessToken");
   };
 
-  /* =========================
-     Restore token on refresh
-  ========================= */
   useEffect(() => {
     const savedToken = sessionStorage.getItem("accessToken");
-    if (savedToken) {
-      setAccessToken(savedToken);
-    }
+    if (savedToken) setAccessToken(savedToken);
   }, []);
 
-  /* =========================
-     Fetch Google Sheets
-  ========================= */
+  /* ================= FETCH FILES ================= */
+
   async function fetchDriveFiles(token: string) {
     setLoading(true);
-
     try {
       const res = await fetch(
         "https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.spreadsheet'&fields=files(id,name)",
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       const data = await res.json();
       setFiles(data.files || []);
     } catch (err) {
-      console.error("Failed to fetch files:", err);
+      console.error(err);
     }
-
     setLoading(false);
   }
 
   useEffect(() => {
-    if (accessToken) {
-      fetchDriveFiles(accessToken);
-    }
+    if (accessToken) fetchDriveFiles(accessToken);
   }, [accessToken]);
+
+  /* ================= OPEN SHEET ================= */
+
+  async function openSheet(file: any) {
+    try {
+      setLoading(true);
+
+      const metaRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${file.id}`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+
+      const meta = await metaRes.json();
+      const sheetNames = meta.sheets.map(
+        (s: any) => s.properties.title
+      );
+
+      const ranges = sheetNames
+        .map((name: string) => `ranges=${encodeURIComponent(name)}`)
+        .join("&");
+
+      const dataRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${file.id}/values:batchGet?${ranges}`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+
+      const data = await dataRes.json();
+
+      const results = data.valueRanges.map(
+        (range: any, i: number) => ({
+          name: `${file.name} - ${sheetNames[i]}`,
+          rows: range.values || [],
+        })
+      );
+
+      /* Save source info */
+      sessionStorage.setItem(
+        "sheetSource",
+        JSON.stringify({
+          fileId: file.id,
+          fileName: file.name,
+        })
+      );
+
+      sessionStorage.setItem("sheets", JSON.stringify(results));
+
+      router.push("/tables");
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* ================= UI ================= */
 
   return (
     <div className="p-8 max-w-4xl">
@@ -77,16 +126,14 @@ export default function ConnectPage() {
         <Cloud className="w-6 h-6 text-blue-600" />
         Google Drive
       </h1>
-
+  
       {!accessToken ? (
-        /* =========================
-           Login Card
-        ========================= */
+        /* ================= LOGIN CARD ================= */
         <div className="bg-white p-8 rounded-2xl shadow-sm border max-w-md">
           <p className="text-slate-600 mb-6">
             Connect your Google Drive to browse your Google Sheets.
           </p>
-
+  
           <button
             onClick={() => login()}
             className="px-5 py-2.5 bg-blue-600 text-white rounded-lg 
@@ -96,14 +143,12 @@ export default function ConnectPage() {
           </button>
         </div>
       ) : (
-        /* =========================
-           Sheets Section
-        ========================= */
+        /* ================= FILE LIST ================= */
         <div className="bg-white p-6 rounded-2xl shadow-sm border">
           {/* Section Header */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-semibold">Google Sheets</h2>
-
+  
             <button
               onClick={logout}
               className="flex items-center gap-2 text-red-500 hover:text-red-700 text-sm"
@@ -112,11 +157,11 @@ export default function ConnectPage() {
               Disconnect
             </button>
           </div>
-
+  
           {/* Loading Skeleton */}
           {loading && (
             <div className="space-y-3">
-              {[...Array(3)].map((_, i) => (
+              {[...Array(4)].map((_, i) => (
                 <div
                   key={i}
                   className="h-14 bg-slate-200 rounded-xl animate-pulse"
@@ -124,28 +169,33 @@ export default function ConnectPage() {
               ))}
             </div>
           )}
-
+  
           {/* No Files */}
           {!loading && files.length === 0 && (
-            <p className="text-slate-400">No sheets found</p>
+            <p className="text-slate-400">No spreadsheets found</p>
           )}
-
-          {/* Files Display */}
+  
+          {/* File List */}
           {!loading && files.length > 0 && (
             <div className="max-h-[420px] overflow-y-auto pr-2 space-y-3">
               {files.map((file) => (
                 <div
                   key={file.id}
-                  className="group flex items-center gap-4 p-4 rounded-xl
-                             border border-slate-200 bg-slate-50
-                             hover:bg-white hover:border-blue-400
-                             hover:shadow-md hover:-translate-y-1
-                             transition-all duration-200 cursor-pointer"
+                  onClick={() => openSheet(file)}
+                  className="
+                    group flex items-center gap-4 p-4 rounded-xl
+                    border border-slate-200 bg-slate-50
+                    hover:bg-white hover:border-blue-400
+                    hover:shadow-md hover:-translate-y-0.5
+                    transition-all duration-200 cursor-pointer
+                  "
                 >
+                  {/* Icon */}
                   <div className="p-2 bg-green-100 rounded-lg">
                     <FileSpreadsheet className="w-5 h-5 text-green-600" />
                   </div>
-
+  
+                  {/* File Name */}
                   <div className="flex-1">
                     <p className="text-sm font-medium text-slate-800 truncate">
                       {file.name}

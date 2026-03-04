@@ -70,13 +70,6 @@ export default function QueryPage() {
         )}
       </div>
 
-      {rows.length > 0 && (
-        <div className="mt-6 bg-white border border-slate-200 rounded-xl p-4 max-w-4xl">
-          <pre className="text-sm overflow-x-auto">
-            {JSON.stringify(rows, null, 2)}
-          </pre>
-        </div>
-      )}
     </div>
   );
 }
