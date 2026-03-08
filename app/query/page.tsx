@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Table , Search, Trash2} from "lucide-react";
 import { getDB } from "../lib/pglite";
 import { useToast } from "../components/ToastProvider";
 
@@ -9,13 +10,48 @@ export default function QueryPage() {
   const [db, setDb] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [tables, setTables] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
   const router = useRouter();
   const { showToast } = useToast();
+
+  async function loadTables(database: any) {
+    try {
+      const result = await database.query(`
+        SELECT tablename
+        FROM pg_catalog.pg_tables
+        WHERE schemaname='public'
+        ORDER BY tablename
+      `);
+
+      const names = result.rows.map((r: any) => r.tablename);
+      setTables(names);
+
+    } catch (err) {
+      showToast("Failed loading tables", "error");
+    }
+  }
+
+  async function dropTable(tableName: string) {
+    if (!db) return;
+  
+    try {
+      await db.exec(`DROP TABLE IF EXISTS "${tableName}"`);
+  
+      showToast(`Table ${tableName} removed`, "success");
+  
+      await loadTables(db);
+  
+    } catch (err) {
+      showToast("Failed to drop table", "error");
+    }
+  }
 
   useEffect(() => {
     async function init() {
       const database = await getDB();
       setDb(database);
+      await loadTables(database);
     }
     init();
   }, []);
@@ -27,10 +63,13 @@ export default function QueryPage() {
 
     try {
       const result = await db.query(query);
+
+      await loadTables(db);
+
       const resultRows = result.rows || [];
 
       if (resultRows.length === 0) {
-        showToast("Query returned no rows" , "error");
+        showToast("Query returned no rows", "info");
         return;
       }
 
@@ -58,51 +97,139 @@ export default function QueryPage() {
       const updated = [...filtered, queryTab];
 
       sessionStorage.setItem("sheets", JSON.stringify(updated));
-      
       router.push("/tables");
 
     } catch (err: any) {
       setError(err?.message || "Query failed");
+      showToast("Query execution failed", "error");
     }
   };
 
+  const filteredTables = tables.filter((t) =>
+    t.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-slate-800">Query</h1>
-      <p className="text-slate-500 mt-1 mb-6">
-        Type and run SQL queries on the database
-      </p>
+    <div className="flex gap-6 items-start">
 
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm max-w-4xl">
-        <label className="block text-sm font-medium text-slate-700 mb-2">
-          SQL Query
-        </label>
+      <div className="max-w-4xl w-full">
 
-        <textarea
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          rows={6}
-          className="w-full border border-slate-300 rounded-lg p-3 font-mono text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Enter Query ..."
-        />
+        <h1 className="text-2xl font-bold text-slate-800">
+          Query
+        </h1>
 
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={runQuery}
-            disabled={!db}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg
-                       hover:bg-blue-700 transition disabled:opacity-50"
-          >
-            Run Query
-          </button>
+        <p className="text-slate-500 mt-1 mb-6">
+          Type and run SQL queries on the database
+        </p>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            SQL Query
+          </label>
+
+          <textarea
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            rows={6}
+            className="w-full border border-slate-300 rounded-lg p-3 font-mono text-sm
+                       focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter Query ..."
+          />
+
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={runQuery}
+              disabled={!db}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg
+                         hover:bg-blue-700 transition disabled:opacity-50"
+            >
+              Run Query
+            </button>
+          </div>
+
+          {error && (
+            <p className="mt-3 text-sm text-red-600">
+              {error}
+            </p>
+          )}
+        </div>
+      </div>
+
+
+      <div className="flex-1 mt-12">
+
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+
+          <h2 className="text-lg font-semibold text-slate-800 mb-4">
+            Relations
+          </h2>
+
+          <div className="relative mb-5">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search tables..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="
+                  w-full pl-9 pr-3 py-2 text-sm
+                  border border-slate-300 rounded-lg
+                  focus:outline-none focus:ring-2 focus:ring-blue-500
+                "
+              />
+          </div>
+
+          <div className="max-h-[420px] overflow-y-auto pr-2 space-y-3">
+
+            {filteredTables.length === 0 && (
+              <p className="text-slate-400 text-sm">
+                No tables found
+              </p>
+            )}
+
+            {filteredTables.map((t) => (
+              <div
+                key={t}
+                onClick={() => setQuery(`SELECT * FROM ${t} LIMIT 100;`)}
+                className="
+                  group flex items-center gap-4 p-4 rounded-xl
+                  border border-slate-200 bg-slate-50
+                  hover:bg-white hover:border-blue-400
+                  hover:shadow-md hover:-translate-y-0.5
+                  transition-all duration-200 cursor-pointer
+                "
+              >
+
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Table className="w-5 h-5 text-blue-600" />
+                </div>
+
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-slate-800 truncate">
+                    {t}
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dropTable(t);
+                  }}
+                  className="
+                    opacity-0 group-hover:opacity-100
+                    p-2 rounded-md hover:bg-red-100
+                    transition
+                  "
+                >
+                  <Trash2 className="w-4 h-4 text-red-500" />
+                </button>
+                
+              </div>
+            ))}
+
+          </div>
+
         </div>
 
-        {error && (
-          <p className="mt-3 text-sm text-red-600">
-            {error}
-          </p>
-        )}
       </div>
     </div>
   );

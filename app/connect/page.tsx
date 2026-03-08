@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
-import { LogOut, Cloud, FileSpreadsheet } from "lucide-react";
+import { LogOut, Cloud, FileSpreadsheet, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "../components/ToastProvider";
 
@@ -10,6 +10,7 @@ export default function ConnectPage() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -112,22 +113,24 @@ export default function ConnectPage() {
     }
   }
 
+  const filteredFiles = files.filter((f) =>
+    f.name.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="p-8 max-w-4xl">
       <h1 className="text-2xl font-bold mb-8 flex items-center gap-2">
         <Cloud className="w-6 h-6 text-blue-600" />
         Google Drive
       </h1>
-  
       {!accessToken ? (
         <div className="bg-white p-8 rounded-2xl shadow-sm border max-w-md">
           <p className="text-slate-600 mb-6">
             Connect your Google Drive to browse your Google Sheets.
           </p>
-  
           <button
             onClick={() => login()}
-            className="px-5 py-2.5 bg-blue-600 text-white rounded-lg 
+            className="px-5 py-2.5 bg-blue-600 text-white rounded-lg
                        hover:bg-blue-700 transition font-medium"
           >
             Sign in with Google
@@ -136,8 +139,10 @@ export default function ConnectPage() {
       ) : (
         <div className="bg-white p-6 rounded-2xl shadow-sm border">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold">Google Sheets</h2>
-  
+            <h2 className="text-lg font-semibold">
+              Google Sheets
+            </h2>
+
             <button
               onClick={logout}
               className="flex items-center gap-2 text-red-500 hover:text-red-700 text-sm"
@@ -146,6 +151,23 @@ export default function ConnectPage() {
               Disconnect
             </button>
           </div>
+
+          <div className="relative mb-5">
+
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+
+            <input
+              type="text"
+              placeholder="Search sheets..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300
+                         rounded-lg focus:outline-none focus:ring-2
+                         focus:ring-blue-500"
+            />
+
+          </div>
+
           {loading && (
             <div className="space-y-3">
               {[...Array(4)].map((_, i) => (
@@ -156,12 +178,14 @@ export default function ConnectPage() {
               ))}
             </div>
           )}
-          {!loading && files.length === 0 && (
-            <p className="text-slate-400">No spreadsheets found</p>
+          {!loading && filteredFiles.length === 0 && (
+            <p className="text-slate-400">
+              No spreadsheets found
+            </p>
           )}
-          {!loading && files.length > 0 && (
+          {!loading && filteredFiles.length > 0 && (
             <div className="max-h-[420px] overflow-y-auto pr-2 space-y-3">
-              {files.map((file) => (
+              {filteredFiles.map((file) => (
                 <div
                   key={file.id}
                   onClick={() => openSheet(file)}

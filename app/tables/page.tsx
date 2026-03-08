@@ -45,50 +45,35 @@ export default function TablesPage() {
     );
   }
 
+  function getTableName(tab: any): string {
+    const [fileName, sheetNameRaw] = tab.name.split(" - ");
+    const sheetName = sheetNameRaw || "Sheet1";
+    const tableName = `${fileName}_${sheetName}`
+      .replace(/\s+/g, "_")
+      .replace(/[^\w]/g, "")
+      .toLowerCase();
+      
+    return tableName;
+  }
+
   async function openSchema(tab: Tab) {
-    const source = sessionStorage.getItem("sheetSource");
-    if (!source) return;
-
-    const { fileId } = JSON.parse(source);
-
-    const key = `${fileId}_${tab.name}`;
-
-    const inferred = getInferredSheets();
-
-    let schemaText;
-
-    if (inferred[key]) {
-      schemaText = inferred[key];
-    } else {
-      const [fileName, sheetName] = tab.name.split(" - ");
-      const tableName = `${fileName}_${sheetName}`
-                            .replace(/\s+/g, "_")
-                            .replace(/[^\w]/g, "")
-                            .toLowerCase();
-      schemaText = await inferTable(tab.rows , tableName);
-    }
-
+    const tableName = getTableName(tab);
+    let schemaText = await inferTable(tab.rows, tableName);
     setSchema(schemaText);
-    setSchemaKey(key);
+    setSchemaKey(tableName);
     setShowSchema(true);
   }
 
   async function acceptSchema() {
     const activeTab = tabs[active];
-    const [fileName, sheetName] = activeTab.name.split(" - ");
-    const tableName = `${fileName}_${sheetName}`
-                            .replace(/\s+/g, "_")
-                            .replace(/[^\w]/g, "")
-                            .toLowerCase();
+    const tableName = getTableName(activeTab);
     try {
       // const db = await getDB();
       // await db.exec(schema);
-
       // for (const row of activeTab.rows.slice(1)) {
       //   const values = row.map(v => `'${v}'`).join(",");
       //   await db.exec(`INSERT INTO table_name VALUES (${values})`);
       // }
-
       saveSchema(schemaKey, schema);
       setShowSchema(false);
       showToast("Schema accepted", "success");
@@ -178,7 +163,7 @@ export default function TablesPage() {
 
         <div className="flex gap-2 overflow-x-auto scrollbar-thin">
           {tabs.map((tab, i) => {
-            const key = `${fileId}_${tab.name}`;
+            const key = getTableName(tab);
             const hasSchema = inferred[key];
             return (
               <div
