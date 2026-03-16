@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw, X, Database } from "lucide-react";
+import { RefreshCw, X, Database,Save, FileDown, CloudUpload} from "lucide-react";
 import SpreadsheetViewer from "../components/SpreadsheetViewer";
 import { useToast } from "../components/ToastProvider";
 import { inferTable } from "../lib/inference";
@@ -23,6 +23,7 @@ export default function TablesPage() {
   const [schemaKey, setSchemaKey] = useState("");
   const [cleanedRows, setCleanedRows] = useState<string[][]>([]);
   const [loadingSchema, setLoadingSchema] = useState(false);
+  const [openMenu, setOpenMenu] = useState<number | null>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("sheets");
@@ -138,6 +139,34 @@ export default function TablesPage() {
     }
   }
 
+  function exportCSV(tab: Tab) {
+    const csvContent = tab.rows
+      .map(row =>
+        row
+          .map(cell =>
+            `"${String(cell ?? "").replace(/"/g, '""')}"`
+          )
+          .join(",")
+      )
+      .join("\n");
+  
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  
+    const url = URL.createObjectURL(blob);
+  
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${getTableName(tab)}.csv`;
+  
+    document.body.appendChild(link);
+    link.click();
+  
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  
+    showToast("CSV exported successfully", "success");
+  }
+
   function closeTab(index: number) {
     const updated = tabs.filter((_, i) => i !== index);
     setTabs(updated);
@@ -191,6 +220,18 @@ export default function TablesPage() {
                                 transition cursor-pointer"
                     >
                       <Database size={14} />
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenu(openMenu === i ? null : i);
+                      }}
+                      className="flex items-center justify-center w-7 h-7 rounded-md
+                                bg-white/30 hover:bg-yellow-500 text-white 
+                                transition cursor-pointer"
+                    >
+                      <Save size={14} />
                     </button>
 
                     <button
@@ -268,6 +309,98 @@ export default function TablesPage() {
 
           </div>
 
+        </div>
+      )}
+
+      {openMenu !== null && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          onClick={() => setOpenMenu(null)}
+        >
+          <div
+            className="bg-white w-[420px] rounded-xl shadow-lg border border-slate-200 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+
+            <div className="px-6 py-4 border-b border-slate-100">
+              <h2 className="text-lg font-semibold text-slate-800">
+                Save Table
+              </h2>
+              <p className="text-xs text-slate-400 mt-1 truncate">
+                {tabs[openMenu]?.name}
+              </p>
+            </div>
+
+            <div className="p-6 space-y-3">
+              <button
+                onClick={() => {
+                  exportCSV(tabs[openMenu]);
+                  setOpenMenu(null);
+                }}
+                className="
+                  w-full flex items-center gap-3
+                  px-4 py-3 rounded-lg
+                  border border-slate-200
+                  hover:bg-slate-50 transition
+                "
+              >
+                <div className="p-2 bg-slate-100 rounded-md">
+                  <FileDown size={16} className="text-slate-600" />
+                </div>
+
+                <div className="text-left">
+                  <p className="text-sm font-medium text-slate-700">
+                    Export as CSV
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Download the table locally
+                  </p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  showToast("Google Drive export coming soon", "info");
+                  setOpenMenu(null);
+                }}
+                className="
+                  w-full flex items-center gap-3
+                  px-4 py-3 rounded-lg
+                  border border-slate-200
+                  hover:bg-slate-50 transition
+                "
+              >
+                <div className="p-2 bg-slate-100 rounded-md">
+                  <CloudUpload size={16} className="text-slate-600" />
+                </div>
+
+                <div className="text-left">
+                  <p className="text-sm font-medium text-slate-700">
+                    Save to Google Drive
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Upload CSV directly to Drive
+                  </p>
+                </div>
+              </button>
+
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setOpenMenu(null)}
+                className="
+                  px-4 py-2 text-sm
+                  bg-gray-200 rounded
+                  hover:bg-gray-300
+                  transition
+                "
+              >
+                Cancel
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 
