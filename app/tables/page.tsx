@@ -24,6 +24,7 @@ export default function TablesPage() {
   const [cleanedRows, setCleanedRows] = useState<string[][]>([]);
   const [loadingSchema, setLoadingSchema] = useState(false);
   const [openMenu, setOpenMenu] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("sheets");
@@ -165,6 +166,116 @@ export default function TablesPage() {
     URL.revokeObjectURL(url);
   
     showToast("CSV exported successfully", "success");
+  }
+
+  async function saveToDrive(tab: Tab) {
+    setExporting(true); 
+  
+    const token = sessionStorage.getItem("accessToken");
+  
+    if (!token) {
+      setExporting(false); 
+      showToast("Google authentication missing", "error");
+      return;
+    }
+  
+    try {
+      const folderName = "DBVisualizer";
+  
+      const search = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+  
+      const searchData = await search.json();
+      let folderId = searchData.files?.[0]?.id;
+  
+      if (!folderId) {
+        const createFolder = await fetch(
+          "https://www.googleapis.com/drive/v3/files",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              name: folderName,
+              mimeType: "application/vnd.google-apps.folder"
+            })
+          }
+        );
+  
+        const folder = await createFolder.json();
+        folderId = folder.id;
+      }
+  
+      const csvContent = tab.rows
+        .map(row =>
+          row
+            .map(cell =>
+              `"${String(cell ?? "").replace(/"/g, '""')}"`
+            )
+            .join(",")
+        )
+        .join("\n");
+  
+      const metadata = {
+        name: `${getTableName(tab)}.csv`,
+        parents: [folderId]
+      };
+  
+      const form = new FormData();
+      form.append(
+        "metadata",
+        new Blob([JSON.stringify(metadata)], { type: "application/json" })
+      );
+      form.append(
+        "file",
+        new Blob([csvContent], { type: "text/csv" })
+      );
+  
+      const upload = await fetch(
+        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          body: form
+        }
+      );
+  
+      const file = await upload.json();
+  
+      await fetch(
+        `https://www.googleapis.com/drive/v3/files/${file.id}/permissions`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            role: "reader",
+            type: "anyone"
+          })
+        }
+      );
+  
+      const link = `https://drive.google.com/drive/folders/${folderId}`;
+      await navigator.clipboard.writeText(link);
+  
+      showToast("Saved to Google Drive. Link copied!", "success");
+    } catch (err) {
+      showToast("Failed to save to Google Drive", "error");
+    } finally {
+      setExporting(false);
+    }
   }
 
   function closeTab(index: number) {
@@ -360,7 +471,7 @@ export default function TablesPage() {
 
               <button
                 onClick={() => {
-                  showToast("Google Drive export coming soon", "info");
+                  saveToDrive(tabs[openMenu]);
                   setOpenMenu(null);
                 }}
                 className="
@@ -401,6 +512,22 @@ export default function TablesPage() {
             </div>
 
           </div>
+        </div>
+      )}
+
+      {exporting && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30">
+          
+          <div className="flex flex-col items-center gap-3">
+            
+            <div className="w-10 h-10 border-4 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+
+            <p className="text-sm text-white font-medium">
+              Exporting to Drive
+            </p>
+
+          </div>
+
         </div>
       )}
 
