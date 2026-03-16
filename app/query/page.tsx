@@ -12,6 +12,8 @@ export default function QueryPage() {
   const [error, setError] = useState<string | null>(null);
   const [tables, setTables] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [columns, setColumns] = useState<string[]>([]);
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -29,6 +31,26 @@ export default function QueryPage() {
 
     } catch (err) {
       showToast("Failed loading tables", "error");
+    }
+  }
+
+  async function loadColumns(table: string) {
+    if (!db) return;
+  
+    try {
+      const result = await db.query(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = '${table}'
+        ORDER BY ordinal_position
+      `);
+  
+      const cols = result.rows.map((r: any) => r.column_name);
+      setColumns(cols);
+      setSelectedTable(table);
+  
+    } catch {
+      showToast("Failed loading columns", "error");
     }
   }
 
@@ -190,7 +212,10 @@ export default function QueryPage() {
             {filteredTables.map((t) => (
               <div
                 key={t}
-                onClick={() => setQuery(`SELECT * FROM ${t} LIMIT 100;`)}
+                onClick={() => {
+                  setQuery(`SELECT * FROM ${t} LIMIT 100;`)
+                  loadColumns(t);
+                }}
                 className="
                   group flex items-center gap-4 p-4 rounded-xl
                   border border-slate-200 bg-slate-50
@@ -208,6 +233,19 @@ export default function QueryPage() {
                   <p className="text-sm font-medium text-slate-800 truncate">
                     {t}
                   </p>
+
+                  {selectedTable === t && columns.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {columns.map((col) => (
+                        <span
+                          key={col}
+                          className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium"
+                        >
+                          {col}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={(e) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw, X, Wand2 } from "lucide-react";
+import { RefreshCw, X, Database } from "lucide-react";
 import SpreadsheetViewer from "../components/SpreadsheetViewer";
 import { useToast } from "../components/ToastProvider";
 import { inferTable } from "../lib/inference";
@@ -180,23 +180,31 @@ export default function TablesPage() {
                 <span className="truncate max-w-[180px]">
                   {tab.name}
                 </span>
-                <Wand2
-                  size={16}
-                  className="cursor-pointer opacity-70 hover:opacity-100"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openSchema(tab);
-                  }}
-                />
+                <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openSchema(tab);
+                      }}
+                      className="flex items-center justify-center w-7 h-7 rounded-md
+                                bg-white/30 hover:bg-green-600 text-white
+                                transition cursor-pointer"
+                    >
+                      <Database size={14} />
+                    </button>
 
-                <X
-                  size={14}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeTab(i);
-                  }}
-                  className="hover:text-red-300"
-                />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeTab(i);
+                      }}
+                      className="flex items-center justify-center w-7 h-7 rounded-md
+                                bg-white/30 hover:bg-red-600 text-white
+                                transition cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
               </div>
             );
           })}
@@ -253,7 +261,7 @@ export default function TablesPage() {
                 {loadingSchema && (
                   <RefreshCw size={16} className="animate-spin" />
                 )}
-                {loadingSchema ? "Loading..." : "Accept"}
+                {loadingSchema ? "Loading..." : "Load in DB"}
               </button>
 
             </div>
