@@ -1,11 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Table , Search, Trash2} from "lucide-react";
 import { getDB } from "../lib/pglite";
 import { useToast } from "../components/ToastProvider";
 import Editor from "@monaco-editor/react";  
+
+const SQL_KEYWORDS = [
+  "SELECT","FROM","WHERE","INSERT","INTO","VALUES","UPDATE","SET",
+  "DELETE","JOIN","LEFT JOIN","RIGHT JOIN","INNER JOIN",
+  "GROUP BY","ORDER BY","LIMIT","OFFSET","AND","OR","NOT","NULL",
+  "CREATE","TABLE","DROP","ALTER"
+];
 
 export default function QueryPage() {
   const [db, setDb] = useState<any>(null);
@@ -15,6 +22,11 @@ export default function QueryPage() {
   const [search, setSearch] = useState("");
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [columns, setColumns] = useState<string[]>([]);
+  const [corpus, setCorpus] = useState<string[]>([]);
+
+  const monacoRef = useRef<any>(null);
+  const providerRef = useRef<any>(null);
+
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -30,7 +42,28 @@ export default function QueryPage() {
       const names = result.rows.map((r: any) => r.tablename);
       setTables(names);
 
-    } catch (err) {
+      let allColumns: string[] = [];
+
+      for (const table of names) {
+        const colRes = await database.query(`
+          SELECT column_name
+          FROM information_schema.columns
+          WHERE table_name = '${table}'
+        `);
+
+        const cols = colRes.rows.map((r: any) => r.column_name);
+        allColumns.push(...cols);
+      }
+
+      const fullCorpus = [
+        ...SQL_KEYWORDS,
+        ...names,
+        ...allColumns,
+      ];
+
+      setCorpus(Array.from(new Set(fullCorpus)));
+
+    } catch {
       showToast("Failed loading tables", "error");
     }
   }
@@ -60,12 +93,9 @@ export default function QueryPage() {
   
     try {
       await db.exec(`DROP TABLE IF EXISTS "${tableName}"`);
-  
       showToast(`Table ${tableName} removed`, "success");
-  
       await loadTables(db);
-  
-    } catch (err) {
+    } catch {
       showToast("Failed to drop table", "error");
     }
   }
@@ -79,6 +109,44 @@ export default function QueryPage() {
     init();
   }, []);
 
+  useEffect(() => {
+    if (!monacoRef.current || corpus.length === 0) return;
+
+    const monaco = monacoRef.current;
+
+    if (providerRef.current) {
+      providerRef.current.dispose();
+    }
+
+    providerRef.current =
+      monaco.languages.registerCompletionItemProvider("sql", {
+        triggerCharacters: [".", " ", "(", ","],
+
+        provideCompletionItems: (model: any, position: any) => {
+          const word = model.getWordUntilPosition(position);
+
+          const suggestions = corpus.map((item) => ({
+            label: item,
+            kind: SQL_KEYWORDS.includes(item)
+              ? monaco.languages.CompletionItemKind.Keyword
+              : tables.includes(item)
+              ? monaco.languages.CompletionItemKind.Class
+              : monaco.languages.CompletionItemKind.Field,
+            insertText: item,
+            range: {
+              startLineNumber: position.lineNumber,
+              endLineNumber: position.lineNumber,
+              startColumn: word.startColumn,
+              endColumn: word.endColumn,
+            },
+          }));
+
+          return { suggestions };
+        },
+      });
+
+  }, [corpus, tables]);
+
   const runQuery = async () => {
     if (!db) return;
 
@@ -86,7 +154,6 @@ export default function QueryPage() {
 
     try {
       const result = await db.query(query);
-
       await loadTables(db);
 
       const resultRows = result.rows || [];
@@ -155,13 +222,22 @@ export default function QueryPage() {
               height="200px"
               defaultLanguage="sql"
               value={query}
-              onChange={(val) => setQuery(val || "")}
+              onChange={(val) => 
+                setQuery(val || "")}
+              onMount={(editor, monaco) => {
+                monacoRef.current = monaco;
+              }}
               theme="light"
               options={{
                 fontSize: 14,
                 minimap: { enabled: false },
                 wordWrap: "on",
                 scrollBeyondLastLine: false,
+                quickSuggestions: true,
+                suggestOnTriggerCharacters: true,
+                padding: {
+                  top: 10,
+                },
               }}
             />
           </div>
@@ -184,7 +260,6 @@ export default function QueryPage() {
           )}
         </div>
       </div>
-
 
       <div className="flex-1 mt-12">
 
