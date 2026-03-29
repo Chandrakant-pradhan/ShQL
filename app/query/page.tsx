@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Table , Search, Trash2} from "lucide-react";
 import { getDB } from "../lib/pglite";
 import { useToast } from "../components/ToastProvider";
-import Editor from "@monaco-editor/react"; 
+import Editor from "@monaco-editor/react";  
 
 export default function QueryPage() {
   const [db, setDb] = useState<any>(null);
