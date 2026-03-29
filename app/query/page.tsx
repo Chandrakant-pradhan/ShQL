@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Table , Search, Trash2} from "lucide-react";
 import { getDB } from "../lib/pglite";
 import { useToast } from "../components/ToastProvider";
+import Editor from "@monaco-editor/react"; 
 
 export default function QueryPage() {
   const [db, setDb] = useState<any>(null);
@@ -149,14 +150,21 @@ export default function QueryPage() {
             SQL Query
           </label>
 
-          <textarea
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            rows={6}
-            className="w-full border border-slate-300 rounded-lg p-3 font-mono text-sm
-                       focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter Query ..."
-          />
+          <div className="border border-slate-300 rounded-lg overflow-hidden">
+            <Editor
+              height="200px"
+              defaultLanguage="sql"
+              value={query}
+              onChange={(val) => setQuery(val || "")}
+              theme="light"
+              options={{
+                fontSize: 14,
+                minimap: { enabled: false },
+                wordWrap: "on",
+                scrollBeyondLastLine: false,
+              }}
+            />
+          </div>
 
           <div className="flex justify-end mt-4">
             <button
@@ -187,18 +195,14 @@ export default function QueryPage() {
           </h2>
 
           <div className="relative mb-5">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search tables..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="
-                  w-full pl-9 pr-3 py-2 text-sm
-                  border border-slate-300 rounded-lg
-                  focus:outline-none focus:ring-2 focus:ring-blue-500
-                "
-              />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search tables..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
 
           <div className="max-h-[420px] overflow-y-auto pr-2 space-y-3">
@@ -252,11 +256,7 @@ export default function QueryPage() {
                     e.stopPropagation();
                     dropTable(t);
                   }}
-                  className="
-                    opacity-0 group-hover:opacity-100
-                    p-2 rounded-md hover:bg-red-100
-                    transition
-                  "
+                  className="opacity-0 group-hover:opacity-100 p-2 rounded-md hover:bg-red-100 transition"
                 >
                   <Trash2 className="w-4 h-4 text-red-500" />
                 </button>

@@ -31,7 +31,10 @@ export default function TablesPage() {
     if (!stored) return;
     try {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) setTabs(parsed);
+      if (Array.isArray(parsed)){
+        setTabs(parsed);
+        setActive(parsed.length - 1);
+      }
     } catch {
       setTabs([]);
     }
@@ -133,6 +136,7 @@ export default function TablesPage() {
 
       sessionStorage.setItem("sheets", JSON.stringify(results));
       setTabs(results);
+      setActive(results.length - 1);
     } catch {
       showToast("Error syncing data", "error");
     } finally {
@@ -313,14 +317,14 @@ export default function TablesPage() {
                   ${
                     active === i
                       ? "bg-blue-600 text-white shadow-md"
-                      : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                      : "bg-blue-100 text-blue-700 hover:bg-blue-200"
                   }
                 `}
               >
                 <span className="truncate max-w-[180px]">
                   {tab.name}
                 </span>
-                <div className="flex items-center gap-1">
+                {active == i && (<div className="flex items-center gap-1">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -356,7 +360,7 @@ export default function TablesPage() {
                     >
                       <X size={14} />
                     </button>
-                  </div>
+                  </div>)}
               </div>
             );
           })}
