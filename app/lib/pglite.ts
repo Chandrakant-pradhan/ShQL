@@ -92,11 +92,14 @@ export async function renameDB(newName: string): Promise<void> {
 
   indexedDB.deleteDatabase(`${IDB_PREFIX}${oldName}`);
 
-  activeDB = newName;
+  
 
   await new Promise((r) => setTimeout(r, 60));
 
   window.location.reload();
+
+  activeDB = newName;
+  fetchDBs();
 }
 
 export async function deleteDB(): Promise<void> {
